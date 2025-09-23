@@ -67,7 +67,7 @@ function setupBuffers() {
   shader.setAttribPointer('aPos', 3, gl.FLOAT, false, 0, 0);
 }
 
-const HALF = 0.1;                 // 사각형 반쪽 크기
+const HALF = 0.1;                 
 const LIMIT = 1.0 - HALF;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -83,7 +83,7 @@ function render() {
   gl.clear(gl.COLOR_BUFFER_BIT);
 
   shader.setVec4('uColor', [1.0, 0.0, 0.0, 1.0]);
-  shader.setVec2('uOffset', [offset.x, offset.y]); // 매 프레임 전달
+  shader.setVec2('uOffset', [offset.x, offset.y]); 
 
   gl.bindVertexArray(vao);
   gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
@@ -101,11 +101,11 @@ async function main() {
 
     setupText(canvas, 'Use arrow keys to move the rectangle', 1);
 
-    setupKeyboardEvents();   // A: 키 이벤트 등록
+    setupKeyboardEvents();
     setupBuffers();
     shader.use();
 
-    render();                // B: 매 프레임 이동 적용된 렌더링 시작
+    render();              
     return true;
   } catch (error) {
     console.error('Failed to initialize program:', error);
@@ -122,4 +122,5 @@ main().then(success => {
 }).catch(error => {
   console.error('프로그램 실행 중 오류 발생:', error);
 });
+
 
