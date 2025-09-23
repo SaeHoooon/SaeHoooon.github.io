@@ -9,7 +9,6 @@ let shader;
 let vao;
 let offset = { x: 0, y: 0 };
 
-// ===[ A. 키 상태 테이블 + keydown/keyup 이벤트 ]===
 const keys = { ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
 const STEP = 0.01;
 
@@ -17,7 +16,7 @@ function setupKeyboardEvents() {
   window.addEventListener('keydown', (e) => {
     if (e.key in keys) {
       keys[e.key] = true;
-      e.preventDefault(); // 화살표 기본 스크롤 방지
+      e.preventDefault(); 
     }
   });
   window.addEventListener('keyup', (e) => {
@@ -27,7 +26,6 @@ function setupKeyboardEvents() {
     }
   });
 }
-// ===[ A 끝 ]===
 
 function initWebGL() {
   if (!gl) {
@@ -69,13 +67,11 @@ function setupBuffers() {
   shader.setAttribPointer('aPos', 3, gl.FLOAT, false, 0, 0);
 }
 
-// ===[ B. render에서 매 프레임 이동 적용 ]===
 const HALF = 0.1;                 // 사각형 반쪽 크기
 const LIMIT = 1.0 - HALF;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function render() {
-  // 키 상태 기반으로 오프셋 갱신
   if (keys.ArrowLeft)  offset.x -= STEP;
   if (keys.ArrowRight) offset.x += STEP;
   if (keys.ArrowUp)    offset.y += STEP;
@@ -94,7 +90,6 @@ function render() {
 
   requestAnimationFrame(render);
 }
-// ===[ B 끝 ]===
 
 async function main() {
   try {
@@ -127,3 +122,4 @@ main().then(success => {
 }).catch(error => {
   console.error('프로그램 실행 중 오류 발생:', error);
 });
+
