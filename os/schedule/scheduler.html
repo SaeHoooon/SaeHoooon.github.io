@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPU 스케줄링 학습자료 — CAS3101</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1117;
+    --surface: #161b27;
+    --surface2: #1e2536;
+    --border: #2a3347;
+    --accent: #4f9cf9;
+    --accent2: #a78bfa;
+    --accent3: #34d399;
+    --accent4: #f59e0b;
+    --accent5: #f87171;
+    --text: #e2e8f0;
+    --text-muted: #8899aa;
+    --text-dim: #4a5568;
+    --col-a: #4f9cf9;
+    --col-b: #f87171;
+    --col-c: #a78bfa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    background: linear-gradient(135deg, #0e1117 0%, #131c2e 60%, #0e1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 40px 50px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(79,156,249,.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 900;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #e2e8f0 30%, #4f9cf9 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+  .hero p {
+    color: var(--text-muted);
+    max-width: 600px;
+    font-size: 14px;
+  }
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 28px;
+  }
+  .toc a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    transition: all .2s;
+  }
+  .toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ─── LAYOUT ─── */
+  .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+  section {
+    padding: 56px 0 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  section:last-child { border-bottom: none; }
+
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: var(--text);
+  }
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 28px 0 10px;
+    letter-spacing: .5px;
+  }
+
+  p { color: var(--text-muted); margin-bottom: 14px; }
+  strong { color: var(--text); }
+
+  /* ─── CALLOUT ─── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: rgba(79,156,249,.07);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13.5px;
+    color: var(--text-muted);
+  }
+  .callout.warn { border-color: var(--accent5); background: rgba(248,113,113,.07); }
+  .callout.tip  { border-color: var(--accent3); background: rgba(52,211,153,.07); }
+  .callout.gold { border-color: var(--accent4); background: rgba(245,158,11,.07); }
+  .callout strong { display: block; margin-bottom: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .callout.warn strong { color: var(--accent5); }
+  .callout.tip  strong { color: var(--accent3); }
+  .callout.gold strong { color: var(--accent4); }
+
+  /* ─── RULE BOX ─── */
+  .rule-box {
+    background: linear-gradient(135deg, rgba(79,156,249,.12), rgba(167,139,250,.08));
+    border: 1px solid rgba(79,156,249,.3);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .rule-box .rule-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  /* ─── METRIC GRID ─── */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .metric-card .metric-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 6px;
+    letter-spacing: .5px;
+  }
+  .metric-card p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+  .metric-card .formula {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent3);
+    margin-top: 6px;
+    display: block;
+  }
+
+  /* ─── TIMELINE SVG WRAPPER ─── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 18px 0;
+    overflow-x: auto;
+  }
+  .diagram-caption {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .5px;
+  }
+
+  canvas {
+    display: block;
+    margin: 0 auto;
+  }
+
+  /* ─── COMPARE TABLE ─── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 20px 0;
+  }
+  th {
+    background: var(--surface2);
+    color: var(--accent);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  td:first-child { color: var(--text); font-weight: 600; }
+
+  /* ─── MLFQ DIAGRAM ─── */
+  .mlfq-viz {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 20px 0;
+  }
+  .mlfq-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .mlfq-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    width: 60px;
+    flex-shrink: 0;
+  }
+  .mlfq-queue {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+    align-items: center;
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .mlfq-job {
+    width: 36px; height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .job-a { background: rgba(79,156,249,.2); border: 1px solid rgba(79,156,249,.5); color: var(--col-a); }
+  .job-b { background: rgba(248,113,113,.2); border: 1px solid rgba(248,113,113,.5); color: var(--col-b); }
+  .job-c { background: rgba(167,139,250,.2); border: 1px solid rgba(167,139,250,.5); color: var(--col-c); }
+  .priority-badge {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── FORMULA ─── */
+  .formula-block {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent3);
+    margin: 14px 0;
+    letter-spacing: .5px;
+  }
+
+  /* ─── STRIDE TABLE ─── */
+  .stride-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    margin: 16px 0;
+  }
+  .stride-table th {
+    background: var(--surface2);
+    color: var(--accent);
+    padding: 8px 10px;
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+  .stride-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .stride-table .chosen { background: rgba(52,211,153,.12); color: var(--accent3); font-weight: 700; }
+  .stride-table .row-t1 td:nth-child(2) { color: var(--col-a); }
+  .stride-table .row-t2 td:nth-child(3) { color: var(--col-b); }
+  .stride-table .row-t3 td:nth-child(4) { color: var(--col-c); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 28px 40px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── SCROLL ANIMATION ─── */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity .5s, transform .5s;
+  }
+  .fade-in.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (max-width: 600px) {
+    .hero { padding: 40px 20px 36px; }
+    .container { padding: 0 16px; }
+    h2 { font-size: 1.4rem; }
+    .metric-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ HERO ══════════════════ -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-label">CAS3101 · Operating Systems · 학습자료</div>
+    <h1>CPU Scheduling</h1>
+    <p>어떤 프로세스를 언제 실행할지 결정하는 정책들을 이해하고, 각 알고리즘의 장단점을 비교해봅니다.</p>
+    <nav class="toc">
+      <a href="#overview">개요</a>
+      <a href="#metrics">성능 지표</a>
+      <a href="#fifo">FIFO</a>
+      <a href="#sjf">SJF</a>
+      <a href="#stcf">STCF</a>
+      <a href="#rr">Round Robin</a>
+      <a href="#mlfq">MLFQ</a>
+      <a href="#proportional">비례 배분</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ══════════════════ 개요 ══════════════════ -->
+<div class="container">
+<section id="overview" class="fade-in">
+  <div class="section-tag">Section 01</div>
+  <h2>CPU 스케줄링이란?</h2>
+
+  <p><strong>CPU 스케줄링</strong>은 실행 가능한(runnable) 프로세스들 중 <strong>다음에 어떤 프로세스를 실행할지</strong> 결정하는 정책입니다. 프로세스 전환은 매우 자주 일어나므로 알고리즘이 빠르게 동작해야 합니다.</p>
+
+  <div class="callout">
+    <strong>핵심 구분</strong>
+    <strong>메커니즘(Mechanism)</strong>: <em>어떻게</em> 전환하는가? → 컨텍스트 스위치<br>
+    <strong>정책(Policy)</strong>: <em>언제</em> 전환하는가? → 스케줄링 알고리즘
+  </div>
+
+  <h3>프로세스 상태 전환 다이어그램</h3>
+  <p>프로세스는 <strong>Ready → Running → Blocked</strong> 사이를 오가며, 스케줄러는 Ready 상태의 프로세스 중 하나를 골라 Running으로 만듭니다.</p>
+
+  <div class="diagram-wrap">
+    <canvas id="stateCanvas" width="680" height="220"></canvas>
+    <div class="diagram-caption">프로세스 상태 전환 (Ready ↔ Running ↔ Blocked)</div>
+  </div>
+
+  <h3>주요 용어</h3>
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-name">Workload</div>
+      <p>스케줄러에 입력되는 작업 집합 (도착 시간, 실행 시간 등)</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Scheduler</div>
+      <p>언제 어떤 작업을 실행할지 결정하는 로직</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Metric</div>
+      <p>스케줄링 품질을 측정하는 지표 (turnaround, response 등)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 성능 지표 ══════════════════ -->
+<section id="metrics" class="fade-in">
+  <div class="section-tag">Section 02</div>
+  <h2>성능 지표 (Metrics)</h2>
+
+  <p>스케줄링 알고리즘을 평가할 때는 여러 지표를 사용합니다. 이 지표들은 서로 <strong>트레이드오프(trade-off)</strong> 관계에 있습니다.</p>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-name">Turnaround Time</div>
+      <p>작업이 도착 후 완료될 때까지의 시간. 배치 작업에 중요.</p>
+      <span class="formula">T_completion − T_arrival</span>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Response Time</div>
+      <p>작업이 도착 후 처음 실행될 때까지의 시간. 대화형 작업에 중요.</p>
+      <span class="formula">T_firstrun − T_arrival</span>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Waiting Time</div>
+      <p>Ready 큐에서 대기하는 총 시간. 짧을수록 좋음.</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Throughput</div>
+      <p>단위 시간당 완료되는 작업 수. 많을수록 좋음.</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Fairness</div>
+      <p>모든 작업이 일정 시간 동안 동등하게 CPU를 받는 정도.</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Overhead</div>
+      <p>컨텍스트 스위치 등 스케줄링 자체에 드는 비용. 낮을수록 좋음.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>⚠️ 트레이드오프</strong>
+    Turnaround Time을 줄이면 Response Time이 나빠질 수 있고, Fairness를 높이면 Throughput이 떨어질 수 있습니다. 어떤 지표를 우선시하느냐가 알고리즘 선택의 핵심입니다.
+  </div>
+</section>
+
+<!-- ══════════════════ FIFO ══════════════════ -->
+<section id="fifo" class="fade-in">
+  <div class="section-tag">Section 03</div>
+  <h2>FIFO (First-Come, First-Served)</h2>
+
+  <p>가장 단순한 스케줄링 알고리즘. <strong>먼저 도착한 작업을 먼저 실행</strong>합니다. 마트 계산대 줄서기와 동일한 원리입니다.</p>
+
+  <div class="metric-grid" style="margin-bottom:0">
+    <div class="metric-card">
+      <div class="metric-name">장점 ✓</div>
+      <p>구현 간단, 공평(starvation 없음), Non-preemptive</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">단점 ✗</div>
+      <p><strong>Convoy Effect</strong>: 긴 작업 뒤에 짧은 작업이 끝없이 기다려야 함</p>
+    </div>
+  </div>
+
+  <h3>예시: 같은 길이의 작업들 (좋은 경우)</h3>
+  <div class="diagram-wrap">
+    <canvas id="fifoGoodCanvas" width="680" height="80"></canvas>
+    <div class="diagram-caption">A(10), B(10), C(10) — T_turnaround = (10+20+30)/3 = 20</div>
+  </div>
+
+  <h3>예시: Convoy Effect (나쁜 경우)</h3>
+  <p>A가 100초가 걸리는 큰 작업이고 B, C는 10초짜리인데, A가 먼저 도착해서 B와 C를 오래 기다리게 합니다.</p>
+  <div class="diagram-wrap">
+    <canvas id="fifoBadCanvas" width="680" height="80"></canvas>
+    <div class="diagram-caption">A(100), B(10), C(10) — T_turnaround = (100+110+120)/3 = 110 😱</div>
+  </div>
+</section>
+
+<!-- ══════════════════ SJF ══════════════════ -->
+<section id="sjf" class="fade-in">
+  <div class="section-tag">Section 04</div>
+  <h2>SJF (Shortest Job First)</h2>
+
+  <p><strong>실행 시간이 가장 짧은 작업을 먼저 실행</strong>합니다. 동시에 도착한 상황이라면 <strong>최적의 Turnaround Time</strong>을 보장함을 수학적으로 증명할 수 있습니다.</p>
+
+  <div class="callout tip">
+    <strong>💡 왜 SJF가 최적인가?</strong>
+    작업을 짧은 것부터 처리하면, 각 작업의 완료가 다른 작업의 대기 시간에 미치는 영향이 최소화됩니다. 이는 마치 수퍼마켓에서 바구니에 물건이 하나인 사람을 먼저 계산해주는 것과 같습니다.
+  </div>
+
+  <h3>SJF가 Convoy Effect를 해결한 경우</h3>
+  <div class="diagram-wrap">
+    <canvas id="sjfGoodCanvas" width="680" height="80"></canvas>
+    <div class="diagram-caption">A(100), B(10), C(10) — B,C를 먼저 → T_turnaround = (10+20+120)/3 = 50</div>
+  </div>
+
+  <h3>SJF의 한계: 비동시 도착</h3>
+  <p>A가 t=0에 도착하고 B, C가 t=10에 도착한다면? SJF는 Non-preemptive이므로 이미 실행 중인 A를 멈추지 못합니다.</p>
+  <div class="diagram-wrap">
+    <canvas id="sjfBadCanvas" width="680" height="80"></canvas>
+    <div class="diagram-caption">A가 먼저 도착 → B, C는 A 종료 후에야 실행 → T_turnaround = (100+90+100)/3 = 96.7 😟</div>
+  </div>
+
+  <div class="metric-grid" style="margin-bottom:0">
+    <div class="metric-card">
+      <div class="metric-name">장점 ✓</div>
+      <p>동시 도착 시 최적 Turnaround Time</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">단점 ✗</div>
+      <p>비동시 도착 시 비최적, Starvation 가능, 실행 시간을 미리 알아야 함</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ STCF ══════════════════ -->
+<section id="stcf" class="fade-in">
+  <div class="section-tag">Section 05</div>
+  <h2>STCF (Shortest Time-to-Completion First)</h2>
+
+  <p>SJF의 선점형(Preemptive) 버전. <strong>새 작업이 도착할 때, 현재 작업의 잔여 시간보다 새 작업의 실행 시간이 짧으면 즉시 선점</strong>합니다.</p>
+
+  <div class="callout">
+    <strong>선점(Preemption)이란?</strong>
+    스케줄러가 현재 실행 중인 프로세스를 강제로 중단하고 다른 프로세스를 실행할 수 있는 능력. 더 정교한 스케줄링이 가능해집니다.
+  </div>
+
+  <h3>SJF vs STCF 비교</h3>
+  <div class="diagram-wrap">
+    <canvas id="stcfCanvas" width="680" height="160"></canvas>
+    <div class="diagram-caption">위: SJF (T_turnaround=96.7) / 아래: STCF (T_turnaround=50) — B,C 도착 즉시 A를 선점</div>
+  </div>
+
+  <div class="metric-grid" style="margin-bottom:0">
+    <div class="metric-card">
+      <div class="metric-name">장점 ✓</div>
+      <p>비동시 도착 상황에서도 최적 Turnaround Time</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">단점 ✗</div>
+      <p>Response Time이 여전히 나쁠 수 있음, 실행 시간을 미리 알아야 함</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ RR ══════════════════ -->
+<section id="rr" class="fade-in">
+  <div class="section-tag">Section 06</div>
+  <h2>Round Robin (RR)</h2>
+
+  <p>Ready 큐를 <strong>원형 FIFO</strong>로 취급합니다. 각 작업에 <strong>Time Slice(= 스케줄링 퀀텀)</strong>를 부여하고, 슬라이스가 끝나면 다음 작업으로 전환합니다.</p>
+
+  <div class="callout tip">
+    <strong>💡 Time Slice 크기의 트레이드오프</strong>
+    너무 짧으면 → 컨텍스트 스위치 오버헤드 증가<br>
+    너무 길면 → 응답 시간(Response Time) 나빠짐<br>
+    일반적으로 10~100ms 사용
+  </div>
+
+  <h3>SJF vs RR 비교 (A, B, C 각 30초)</h3>
+  <div class="diagram-wrap">
+    <canvas id="rrCanvas" width="680" height="160"></canvas>
+    <div class="diagram-caption">위: SJF — T_response=30, T_turnaround=60 / 아래: RR(10s) — T_response=10, T_turnaround=80</div>
+  </div>
+
+  <div class="callout warn">
+    <strong>⚠️ Turnaround vs Response 트레이드오프</strong>
+    RR은 Response Time이 훨씬 좋지만, Turnaround Time은 오히려 나쁩니다. 대화형(interactive) 서비스에는 RR이, 배치(batch) 작업에는 SJF/STCF가 유리합니다.
+  </div>
+
+  <table>
+    <tr>
+      <th>알고리즘</th>
+      <th>T_turnaround (avg)</th>
+      <th>T_response (avg)</th>
+      <th>Starvation</th>
+      <th>Preemptive</th>
+    </tr>
+    <tr>
+      <td>FIFO</td>
+      <td>✅ 작업 순서에 따름</td>
+      <td>❌ 나쁨</td>
+      <td>없음</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>SJF</td>
+      <td>✅ 동시 도착 시 최적</td>
+      <td>❌ 나쁨</td>
+      <td>가능</td>
+      <td>No</td>
+    </tr>
+    <tr>
+      <td>STCF</td>
+      <td>✅ 최적</td>
+      <td>❌ 나쁨</td>
+      <td>가능</td>
+      <td>Yes</td>
+    </tr>
+    <tr>
+      <td>RR</td>
+      <td>❌ 나쁨</td>
+      <td>✅ 좋음</td>
+      <td>없음</td>
+      <td>Yes</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ══════════════════ MLFQ ══════════════════ -->
+<section id="mlfq" class="fade-in">
+  <div class="section-tag">Section 07</div>
+  <h2>MLFQ (Multi-Level Feedback Queue)</h2>
+
+  <p>실제 시스템에서는 작업의 실행 시간을 미리 알 수 없습니다. MLFQ는 <strong>과거 행동을 관찰해서 미래를 예측</strong>하며 우선순위를 동적으로 조정합니다.</p>
+
+  <div class="callout gold">
+    <strong>🎯 핵심 아이디어</strong>
+    Interactive 작업 (짧고 I/O 많음) → 높은 우선순위 유지<br>
+    CPU-intensive 작업 (길고 CPU만 씀) → 우선순위 강등
+  </div>
+
+  <h3>MLFQ의 5가지 규칙</h3>
+
+  <div class="rule-box">
+    <div class="rule-num">RULE 1</div>
+    Priority(A) &gt; Priority(B) 이면, A만 실행 (B는 대기)
+  </div>
+  <div class="rule-box">
+    <div class="rule-num">RULE 2</div>
+    Priority(A) = Priority(B) 이면, A와 B를 Round Robin으로 실행
+  </div>
+  <div class="rule-box">
+    <div class="rule-num">RULE 3</div>
+    새 작업이 시스템에 진입하면 <strong>가장 높은 우선순위 큐</strong>에 배치
+  </div>
+  <div class="rule-box">
+    <div class="rule-num">RULE 4 (개선판)</div>
+    해당 레벨에서 <strong>총 time allotment를 다 쓰면</strong> (중간에 I/O를 해도 누적 계산) 우선순위를 한 단계 낮춤
+  </div>
+  <div class="rule-box">
+    <div class="rule-num">RULE 5 — Priority Boost</div>
+    주기 S마다 <strong>모든 작업을 최상위 큐로 이동</strong> → Starvation 방지 + 행동 변화 반영
+  </div>
+
+  <h3>MLFQ 구조 시각화</h3>
+  <div class="diagram-wrap">
+    <canvas id="mlfqStructCanvas" width="680" height="220"></canvas>
+    <div class="diagram-caption">높은 우선순위 큐는 짧은 time slice, 낮은 큐는 긴 time slice</div>
+  </div>
+
+  <h3>Rule 4 개선: 왜 필요한가?</h3>
+  <p>원래 Rule 4a/4b에서는 time slice가 끝나기 전에 I/O를 호출하면 같은 우선순위를 유지했습니다. 악성 프로그램이 이를 악용해 time slice 직전에 I/O를 호출하면 영원히 높은 우선순위를 유지할 수 있었습니다.</p>
+
+  <div class="diagram-wrap">
+    <canvas id="accountingCanvas" width="680" height="160"></canvas>
+    <div class="diagram-caption">왼쪽: 취약한 방식 — B가 I/O를 남발해 Q2에 머뭄 / 오른쪽: 개선된 방식 — 누적 사용량으로 판단</div>
+  </div>
+
+  <h3>Priority Boost 시각화</h3>
+  <div class="diagram-wrap">
+    <canvas id="boostCanvas" width="680" height="200"></canvas>
+    <div class="diagram-caption">Boost 없이는 A가 굶주림(starvation) / Boost 적용 시 A도 주기적으로 실행</div>
+  </div>
+
+  <div class="callout tip">
+    <strong>✅ MLFQ의 장점</strong>
+    실행 시간에 대한 사전 지식 없이도 SJF/STCF에 가까운 성능을 달성할 수 있습니다. 실제 Linux, macOS, Windows 모두 MLFQ 변형을 사용합니다.
+  </div>
+</section>
+
+<!-- ══════════════════ 비례 배분 ══════════════════ -->
+<section id="proportional" class="fade-in">
+  <div class="section-tag">Section 08</div>
+  <h2>비례 배분 스케줄링 (Proportional Share)</h2>
+
+  <p>각 프로세스에 <strong>가중치(weight)</strong>를 부여하고, CPU를 그 비율에 맞게 분배합니다.</p>
+
+  <h3>🎲 Lottery Scheduling (확률적)</h3>
+  <p>각 작업에 <strong>티켓(ticket)</strong>을 발급합니다. 전체 M개 중 작업 i가 m_i 개를 가지면, CPU를 받을 확률은:</p>
+  <div class="formula-block">p_i = m_i / M</div>
+  <p>스케줄러는 랜덤으로 당첨 티켓을 뽑아 그 작업을 실행합니다. 확률적이므로 단기적으로는 오차가 있지만 장기적으로 수렴합니다.</p>
+
+  <h3>📐 Stride Scheduling (결정론적)</h3>
+  <p>각 작업에 <strong>Stride = 큰 상수 / 티켓 수</strong>를 부여하고, <strong>Pass 값이 가장 작은 작업</strong>을 실행합니다. 실행 후 Pass += Stride.</p>
+
+  <div class="callout">
+    <strong>예시</strong>
+    τ₁: tickets=3 → stride=2 &nbsp;|&nbsp; τ₂: tickets=2 → stride=3 &nbsp;|&nbsp; τ₃: tickets=1 → stride=6
+  </div>
+
+  <div class="diagram-wrap" style="overflow-x:auto">
+    <table class="stride-table" id="strideTable">
+      <thead>
+        <tr>
+          <th>time</th>
+          <th>τ₁ pass (stride=2)</th>
+          <th>τ₂ pass (stride=3)</th>
+          <th>τ₃ pass (stride=6)</th>
+          <th>선택</th>
+        </tr>
+      </thead>
+      <tbody id="strideTbody"></tbody>
+    </table>
+    <div class="diagram-caption">초기 pass = stride 값. 가장 작은 pass를 가진 작업이 선택됨 (동률은 임의)</div>
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-name">Lottery</div>
+      <p>구현 간단, 새 프로세스 추가 쉬움, 단기적 불확실성 있음</p>
+    </div>
+    <div class="metric-card">
+      <div class="metric-name">Stride</div>
+      <p>정확하고 결정론적, 새 프로세스 추가 시 pass 초기화 문제 있음</p>
+    </div>
+  </div>
+
+  <h3>Linux CFS (Completely Fair Scheduler)</h3>
+  <p>현대 Linux는 Stride 스케줄링의 개선판인 <strong>CFS</strong>를 사용합니다. <code>vruntime</code>(가상 실행 시간)이 가장 작은 프로세스를 실행하며, 레드-블랙 트리로 O(log n) 시간에 선택합니다.</p>
+</section>
+
+<!-- ══════════════════ 총정리 ══════════════════ -->
+<section id="summary" class="fade-in">
+  <div class="section-tag">Summary</div>
+  <h2>알고리즘 총정리</h2>
+  <table>
+    <tr>
+      <th>알고리즘</th>
+      <th>선점</th>
+      <th>Turnaround</th>
+      <th>Response</th>
+      <th>Starvation</th>
+      <th>사전 지식</th>
+    </tr>
+    <tr><td>FIFO</td><td>✗</td><td>보통</td><td>나쁨</td><td>없음</td><td>불필요</td></tr>
+    <tr><td>SJF</td><td>✗</td><td>최적*</td><td>나쁨</td><td>가능</td><td>필요</td></tr>
+    <tr><td>STCF</td><td>✓</td><td>최적</td><td>나쁨</td><td>가능</td><td>필요</td></tr>
+    <tr><td>Round Robin</td><td>✓</td><td>나쁨</td><td>최적</td><td>없음</td><td>불필요</td></tr>
+    <tr><td>MLFQ</td><td>✓</td><td>좋음</td><td>좋음</td><td>규칙5로 방지</td><td>불필요</td></tr>
+    <tr><td>Lottery / Stride</td><td>✓</td><td>비례</td><td>비례</td><td>없음</td><td>불필요</td></tr>
+  </table>
+  <p style="font-size:12px;color:var(--text-dim)">* 동시 도착 가정 하에</p>
+</section>
+</div><!-- /container -->
+
+<footer>
+  CAS3101: Operating Systems &nbsp;·&nbsp; CPU Scheduling Study Guide &nbsp;·&nbsp; Jinkyu Jeong, Yonsei Univ.
+</footer>
+
+<script>
+// ─── HELPERS ───
+function roundedRect(ctx, x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
+function setupHiDPI(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.width, h = canvas.height;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return ctx;
+}
+
+const COLORS = {
+  A: { fill:'rgba(79,156,249,0.25)', stroke:'#4f9cf9', text:'#4f9cf9' },
+  B: { fill:'rgba(248,113,113,0.25)', stroke:'#f87171', text:'#f87171' },
+  C: { fill:'rgba(167,139,250,0.25)', stroke:'#a78bfa', text:'#a78bfa' },
+};
+const BG = '#1e2536';
+const AXIS = '#4a5568';
+const TEXT_DIM = '#8899aa';
+
+// Draw a horizontal Gantt chart
+// segments: [{label, start, end}]
+// totalTime: max x axis
+// canvasW, canvasH already set
+function drawGantt(ctx, segments, totalTime, canvasW, canvasH, label) {
+  const PAD_L = 12, PAD_R = 12, PAD_T = 16, PAD_B = 22;
+  const BAR_H = 30;
+  const chartW = canvasW - PAD_L - PAD_R;
+  const barY = PAD_T;
+  const scale = chartW / totalTime;
+
+  // background
+  ctx.fillStyle = 'transparent';
+
+  // axis
+  ctx.strokeStyle = AXIS;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(PAD_L, barY + BAR_H + 2);
+  ctx.lineTo(PAD_L + chartW, barY + BAR_H + 2);
+  ctx.stroke();
+
+  // tick marks and labels
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillStyle = TEXT_DIM;
+  ctx.textAlign = 'center';
+  for (let t = 0; t <= totalTime; t += 10) {
+    const x = PAD_L + t * scale;
+    ctx.strokeStyle = AXIS;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, barY + BAR_H + 2);
+    ctx.lineTo(x, barY + BAR_H + 6);
+    ctx.stroke();
+    ctx.fillStyle = TEXT_DIM;
+    ctx.fillText(t, x, canvasH - 2);
+  }
+
+  // segments
+  segments.forEach(seg => {
+    const x = PAD_L + seg.start * scale;
+    const w = (seg.end - seg.start) * scale;
+    const col = COLORS[seg.label] || { fill:'rgba(100,100,100,0.3)', stroke:'#666', text:'#999' };
+    roundedRect(ctx, x + 1, barY, w - 2, BAR_H, 4, col.fill, col.stroke);
+    if (w > 14) {
+      ctx.fillStyle = col.text;
+      ctx.font = 'bold 12px Noto Sans KR, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(seg.label, x + w / 2, barY + BAR_H / 2 + 5);
+    }
+  });
+}
+
+// ─── STATE DIAGRAM ───
+(function() {
+  const c = document.getElementById('stateCanvas');
+  const ctx = setupHiDPI(c);
+  const W = 680, H = 220;
+
+  function circle(x, y, r, fill, stroke) {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2);
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
+  }
+  function arrow(x1, y1, x2, y2, color) {
+    const angle = Math.atan2(y2-y1, x2-x1);
+    const len = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 10*Math.cos(angle-0.3), y2 - 10*Math.sin(angle-0.3));
+    ctx.lineTo(x2 - 10*Math.cos(angle+0.3), y2 - 10*Math.sin(angle+0.3));
+    ctx.closePath(); ctx.fill();
+  }
+  function label(txt, x, y, color, size=12) {
+    ctx.fillStyle = color; ctx.font = `${size}px Noto Sans KR, sans-serif`;
+    ctx.textAlign = 'center'; ctx.fillText(txt, x, y);
+  }
+
+  const R = 46;
+  const ready = {x:170, y:110};
+  const running = {x:510, y:110};
+  const blocked = {x:340, y:185};
+
+  // draw circles
+  circle(ready.x, ready.y, R, 'rgba(79,156,249,0.18)', '#4f9cf9');
+  circle(running.x, running.y, R, 'rgba(52,211,153,0.18)', '#34d399');
+  circle(blocked.x, blocked.y, R, 'rgba(248,113,113,0.18)', '#f87171');
+
+  ctx.fillStyle = '#4f9cf9'; ctx.font = 'bold 14px Noto Sans KR';
+  ctx.textAlign = 'center'; ctx.fillText('Ready', ready.x, ready.y+5);
+  ctx.fillStyle = '#34d399'; ctx.fillText('Running', running.x, running.y+5);
+  ctx.fillStyle = '#f87171'; ctx.fillText('Blocked', blocked.x, blocked.y+5);
+
+  // arrows
+  // Ready → Running (top)
+  arrow(ready.x+R, ready.y-14, running.x-R, running.y-14, '#8899aa');
+  label('Scheduled', 340, ready.y-22, '#8899aa', 11);
+
+  // Running → Ready (bottom)
+  arrow(running.x-R, running.y+14, ready.x+R, running.y+14, '#8899aa');
+  label('Time slice exhausted', 340, running.y+28, '#8899aa', 11);
+
+  // Running → Blocked
+  arrow(running.x-10, running.y+R-10, blocked.x+30, blocked.y-R+10, '#8899aa');
+  label('I/O wait', 475, 165, '#8899aa', 11);
+
+  // Blocked → Ready
+  arrow(blocked.x-30, blocked.y-R+10, ready.x+10, ready.y+R-10, '#8899aa');
+  label('I/O done', 215, 165, '#8899aa', 11);
+})();
+
+// ─── FIFO GOOD ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('fifoGoodCanvas'));
+  drawGantt(ctx, [
+    {label:'A', start:0, end:10},
+    {label:'B', start:10, end:20},
+    {label:'C', start:20, end:30},
+  ], 130, 680, 80);
+})();
+
+// ─── FIFO BAD ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('fifoBadCanvas'));
+  drawGantt(ctx, [
+    {label:'A', start:0, end:100},
+    {label:'B', start:100, end:110},
+    {label:'C', start:110, end:120},
+  ], 130, 680, 80);
+})();
+
+// ─── SJF GOOD ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('sjfGoodCanvas'));
+  drawGantt(ctx, [
+    {label:'B', start:0, end:10},
+    {label:'C', start:10, end:20},
+    {label:'A', start:20, end:120},
+  ], 130, 680, 80);
+})();
+
+// ─── SJF BAD ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('sjfBadCanvas'));
+  const ctx2 = ctx;
+  // A arrives at 0, B/C arrive at 10 but SJF is non-preemptive
+  drawGantt(ctx2, [
+    {label:'A', start:0, end:100},
+    {label:'B', start:100, end:110},
+    {label:'C', start:110, end:120},
+  ], 130, 680, 80);
+  // arrival arrows
+  ctx2.strokeStyle = '#f59e0b'; ctx2.setLineDash([3,3]); ctx2.lineWidth = 1;
+  ctx2.beginPath(); ctx2.moveTo(12 + (10/130)*(680-24), 0); ctx2.lineTo(12 + (10/130)*(680-24), 58); ctx2.stroke();
+  ctx2.setLineDash([]);
+  ctx2.fillStyle = '#f59e0b'; ctx2.font = '10px JetBrains Mono, monospace'; ctx2.textAlign = 'center';
+  ctx2.fillText('B,C 도착', 12 + (10/130)*(680-24), 10);
+})();
+
+// ─── STCF ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('stcfCanvas'));
+  const W = 680, H = 160;
+  // SJF row (top)
+  ctx.fillStyle = '#8899aa'; ctx.font = 'bold 11px JetBrains Mono, monospace';
+  ctx.textAlign = 'left'; ctx.fillText('SJF', 0, 28);
+  drawGanttRow(ctx, [{label:'A',start:0,end:100},{label:'B',start:100,end:110},{label:'C',start:110,end:120}], 130, W, 14, 56);
+
+  ctx.fillStyle = '#8899aa'; ctx.font = 'bold 11px JetBrains Mono, monospace';
+  ctx.textAlign = 'left'; ctx.fillText('STCF', 0, 104);
+  drawGanttRow(ctx, [{label:'A',start:0,end:10},{label:'B',start:10,end:20},{label:'C',start:20,end:30},{label:'A',start:30,end:120}], 130, W, 90, 130);
+
+  // arrival indicator
+  ctx.strokeStyle = '#f59e0b'; ctx.setLineDash([3,3]); ctx.lineWidth = 1;
+  const xArr = 12 + (10/130)*(W-24);
+  ctx.beginPath(); ctx.moveTo(xArr, 0); ctx.lineTo(xArr, H-10); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#f59e0b'; ctx.font = '10px JetBrains Mono'; ctx.textAlign='center';
+  ctx.fillText('B,C 도착→선점', xArr+2, 10);
+
+  function drawGanttRow(ctx, segs, total, W, barY, axisY) {
+    const PL=12, PR=12, BH=30, chartW=W-PL-PR, scale=chartW/total;
+    ctx.strokeStyle='#4a5568'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(PL, barY+BH+2); ctx.lineTo(PL+chartW, barY+BH+2); ctx.stroke();
+    for (let t=0;t<=total;t+=10) {
+      const x=PL+t*scale;
+      ctx.strokeStyle='#4a5568'; ctx.beginPath(); ctx.moveTo(x,barY+BH+2); ctx.lineTo(x,barY+BH+6); ctx.stroke();
+      ctx.fillStyle='#4a5568'; ctx.font='10px JetBrains Mono'; ctx.textAlign='center'; ctx.fillText(t,x,axisY-2);
+    }
+    segs.forEach(s=>{
+      const x=PL+s.start*scale, w=(s.end-s.start)*scale;
+      const col=COLORS[s.label]||{fill:'rgba(100,100,100,.3)',stroke:'#666',text:'#999'};
+      roundedRect(ctx,x+1,barY,w-2,BH,4,col.fill,col.stroke);
+      if(w>14){ctx.fillStyle=col.text;ctx.font='bold 12px Noto Sans KR';ctx.textAlign='center';ctx.fillText(s.label,x+w/2,barY+BH/2+5);}
+    });
+  }
+})();
+
+// ─── RR ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('rrCanvas'));
+  const W=680, H=160;
+  function drawRow(ctx, segs, total, barY, axisY) {
+    const PL=12,PR=12,BH=30,chartW=W-PL-PR,scale=chartW/total;
+    ctx.strokeStyle='#4a5568';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PL,barY+BH+2);ctx.lineTo(PL+chartW,barY+BH+2);ctx.stroke();
+    for(let t=0;t<=total;t+=10){
+      const x=PL+t*scale;
+      ctx.strokeStyle='#4a5568';ctx.beginPath();ctx.moveTo(x,barY+BH+2);ctx.lineTo(x,barY+BH+6);ctx.stroke();
+      ctx.fillStyle='#4a5568';ctx.font='10px JetBrains Mono';ctx.textAlign='center';ctx.fillText(t,x,axisY-2);
+    }
+    segs.forEach(s=>{
+      const x=PL+s.start*scale,w=(s.end-s.start)*scale;
+      const col=COLORS[s.label]||{fill:'rgba(100,100,100,.3)',stroke:'#666',text:'#999'};
+      roundedRect(ctx,x+1,barY,w-2,BH,4,col.fill,col.stroke);
+      if(w>14){ctx.fillStyle=col.text;ctx.font='bold 12px Noto Sans KR';ctx.textAlign='center';ctx.fillText(s.label,x+w/2,barY+BH/2+5);}
+    });
+  }
+  ctx.fillStyle='#8899aa';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';ctx.fillText('SJF',0,28);
+  drawRow(ctx,[{label:'A',start:0,end:30},{label:'B',start:30,end:60},{label:'C',start:60,end:90}],100,14,58);
+
+  ctx.fillStyle='#8899aa';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';ctx.fillText('RR (10s)',0,104);
+  const rrSegs=[];
+  const order=['A','B','C'];
+  // A:30 B:30 C:30, 10s slices: A,B,C,A,B,C,A,B,C
+  const rem={A:30,B:30,C:30};
+  let t=0;
+  for(let round=0;round<3;round++){
+    for(const j of order){
+      if(rem[j]>0){rrSegs.push({label:j,start:t,end:t+10});t+=10;}
+    }
+  }
+  drawRow(ctx,rrSegs,100,90,134);
+})();
+
+// ─── MLFQ STRUCT ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('mlfqStructCanvas'));
+  const W=680, H=220;
+  const queues=[
+    {label:'Q2 (최고)', color:'#4f9cf9', y:30, ts:'5ms'},
+    {label:'Q1', color:'#a78bfa', y:90, ts:'10ms'},
+    {label:'Q0 (최저)', color:'#f87171', y:150, ts:'20ms'},
+  ];
+  queues.forEach(q=>{
+    // label
+    ctx.fillStyle=q.color; ctx.font='bold 12px Noto Sans KR';
+    ctx.textAlign='right'; ctx.fillText(q.label, 120, q.y+22);
+    // queue line
+    ctx.strokeStyle=q.color; ctx.lineWidth=1.5; ctx.setLineDash([]);
+    roundedRect(ctx, 130, q.y, 400, 36, 6, 'rgba(255,255,255,0.03)', q.color+'55');
+    // ts badge
+    ctx.fillStyle=q.color+'aa'; ctx.font='10px JetBrains Mono'; ctx.textAlign='left';
+    ctx.fillText('slice:'+q.ts, 544, q.y+22);
+    // arrow down
+    if(q.y<150){
+      ctx.strokeStyle='#4a5568'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(540, q.y+36); ctx.lineTo(540, q.y+58); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#4a5568'; ctx.beginPath();
+      ctx.moveTo(540, q.y+60); ctx.lineTo(534, q.y+54); ctx.lineTo(546, q.y+54); ctx.closePath(); ctx.fill();
+    }
+  });
+  // Jobs in Q2
+  const jobColors={A:COLORS.A, B:COLORS.B, C:COLORS.C};
+  [['A',145],['C',188]].forEach(([j,x])=>{
+    const col=jobColors[j];
+    roundedRect(ctx,x,36,32,24,4,col.fill,col.stroke);
+    ctx.fillStyle=col.text; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(j,x+16,53);
+  });
+  // Job in Q1
+  roundedRect(ctx,145,96,32,24,4,COLORS.B.fill,COLORS.B.stroke);
+  ctx.fillStyle=COLORS.B.text; ctx.textAlign='center'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('B',161,113);
+  // Job in Q0
+  roundedRect(ctx,145,156,32,24,4,COLORS.A.fill,COLORS.A.stroke);
+  ctx.fillStyle=COLORS.A.text; ctx.textAlign='center'; ctx.font='bold 11px sans-serif';
+  ctx.fillText('A',161,173);
+
+  // boost arrow from bottom
+  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(620,185); ctx.lineTo(620,30); ctx.stroke();
+  ctx.fillStyle='#f59e0b'; ctx.beginPath();
+  ctx.moveTo(620,28); ctx.lineTo(614,38); ctx.lineTo(626,38); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f59e0b'; ctx.font='10px JetBrains Mono'; ctx.textAlign='center';
+  ctx.fillText('Priority', 648, 110);
+  ctx.fillText('Boost', 648, 124);
+  ctx.fillText('(Rule 5)', 648, 138);
+})();
+
+// ─── ACCOUNTING ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('accountingCanvas'));
+  const W=680, H=160;
+  function drawRow(ctx, segs, total, barY, axisY) {
+    const PL=12,PR=12,BH=26,chartW=(W/2)-PL-PR-10,scale=chartW/total;
+    ctx.strokeStyle='#4a5568';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PL,barY+BH+2);ctx.lineTo(PL+chartW,barY+BH+2);ctx.stroke();
+    for(let t=0;t<=total;t+=10){
+      const x=PL+t*scale;
+      ctx.strokeStyle='#4a5568';ctx.beginPath();ctx.moveTo(x,barY+BH+2);ctx.lineTo(x,barY+BH+5);ctx.stroke();
+      ctx.fillStyle='#4a5568';ctx.font='9px JetBrains Mono';ctx.textAlign='center';ctx.fillText(t,x,axisY-2);
+    }
+    segs.forEach(s=>{
+      const x=PL+s.start*scale,w=(s.end-s.start)*scale;
+      const col=COLORS[s.label]||{fill:'rgba(100,100,100,.3)',stroke:'#666',text:'#999'};
+      roundedRect(ctx,x+1,barY,Math.max(w-2,2),BH,3,col.fill,col.stroke);
+      if(w>12){ctx.fillStyle=col.text;ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText(s.label,x+w/2,barY+BH/2+5);}
+    });
+  }
+
+  const halfW = W/2;
+  // Left: without precise accounting (B stays Q2)
+  ctx.save(); ctx.translate(0,0);
+  ctx.fillStyle='#f87171';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';
+  ctx.fillText('취약한 방식 (B가 Q2에 머뭄)',0,12);
+  // Q2 row: B always in Q2
+  ctx.fillStyle='#8899aa';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('Q2',40,45);
+  const segsWeak=[];for(let t=0;t<90;t+=10)segsWeak.push({label:'B',start:t,end:t+9});
+  drawRow(ctx, segsWeak, 100, 22, 66);
+  ctx.fillStyle='#8899aa';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('Q1',40,95);
+  drawRow(ctx, [], 100, 72, 116);
+  ctx.fillStyle='#8899aa';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('Q0',40,142);
+  drawRow(ctx, [], 100, 118, 160);
+  ctx.restore();
+
+  // Right: with precise accounting
+  ctx.save(); ctx.translate(W/2, 0);
+  ctx.fillStyle='#34d399';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';
+  ctx.fillText('개선된 방식 (누적 추적)',0,12);
+  ctx.fillStyle='#8899aa';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('Q2',40,45);
+  drawRow(ctx, [{label:'B',start:0,end:10}], 100, 22, 66);
+  ctx.fillStyle='#8899aa';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('Q1',40,95);
+  drawRow(ctx, [{label:'B',start:10,end:20}], 100, 72, 116);
+  ctx.fillStyle='#8899aa';ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText('Q0',40,142);
+  drawRow(ctx, [
+    {label:'A',start:20,end:30},{label:'B',start:30,end:40},
+    {label:'A',start:40,end:50},{label:'B',start:50,end:60},
+    {label:'A',start:60,end:70},{label:'B',start:70,end:80},
+    {label:'A',start:80,end:90},{label:'B',start:90,end:100},
+  ], 100, 118, 160);
+  ctx.restore();
+})();
+
+// ─── BOOST ───
+(function() {
+  const ctx = setupHiDPI(document.getElementById('boostCanvas'));
+  const W=680,H=200;
+  function miniRow(ctx, segs, total, barY, xOff, availW) {
+    const BH=22, scale=availW/total;
+    segs.forEach(s=>{
+      const x=xOff+s.start*scale,w=(s.end-s.start)*scale;
+      const col=COLORS[s.label]||{fill:'rgba(100,100,100,.3)',stroke:'#555',text:'#888'};
+      roundedRect(ctx,x+.5,barY,Math.max(w-1,1),BH,3,col.fill,col.stroke);
+      if(w>12){ctx.fillStyle=col.text;ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.fillText(s.label,x+w/2,barY+BH/2+4);}
+    });
+    // axis
+    ctx.strokeStyle='#4a5568';ctx.lineWidth=.8;
+    ctx.beginPath();ctx.moveTo(xOff,barY+BH+1);ctx.lineTo(xOff+availW,barY+BH+1);ctx.stroke();
+  }
+
+  const QLAB = ['Q2','Q1','Q0'];
+  const QCOLS = ['#4f9cf9','#a78bfa','#f87171'];
+  const xStart=52, chartW=W-xStart-10, TOTAL=220;
+
+  // WITHOUT BOOST
+  ctx.fillStyle='#f87171';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';ctx.fillText('Priority Boost 없음',0,14);
+  const noBoost=[
+    [{label:'A',start:0,end:10}],           // Q2
+    [{label:'A',start:10,end:30}],           // Q1
+    [{label:'A',start:30,end:80}],           // Q0: A stuck here
+  ];
+  // Flood Q2 with interactive (starvation of A shown as red striped)
+  noBoost[0].push({label:'C',start:14,end:24},{label:'C',start:24,end:34},{label:'C',start:34,end:44},{label:'C',start:44,end:54},{label:'C',start:54,end:64});
+
+  for(let qi=0;qi<3;qi++){
+    const y=22+qi*36;
+    ctx.fillStyle=QCOLS[qi];ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText(QLAB[qi],48,y+16);
+    roundedRect(ctx,xStart,y,chartW,26,4,'rgba(255,255,255,.02)',QCOLS[qi]+'33');
+    miniRow(ctx, noBoost[qi]||[], TOTAL, y+2, xStart, chartW);
+  }
+  // starvation text
+  ctx.fillStyle='#f87171aa';ctx.font='italic 11px Noto Sans KR';ctx.textAlign='left';
+  ctx.fillText('… A 기아(starvation) …', xStart+chartW*0.4, 22+2*36+16);
+
+  // WITH BOOST
+  const topY=128;
+  ctx.fillStyle='#34d399';ctx.font='bold 11px JetBrains Mono';ctx.textAlign='left';ctx.fillText('Priority Boost 있음 (S=50)',0,topY-2);
+  const withBoost=[
+    [{label:'A',start:0,end:10},{label:'A',start:50,end:60},{label:'A',start:100,end:110},{label:'A',start:150,end:160}],
+    [{label:'A',start:10,end:30},{label:'A',start:60,end:80},{label:'A',start:110,end:130}],
+    [{label:'A',start:30,end:50},{label:'A',start:80,end:100},{label:'A',start:130,end:150}],
+  ];
+  for(let qi=0;qi<3;qi++){
+    const y=topY+10+qi*20;
+    ctx.fillStyle=QCOLS[qi];ctx.font='10px JetBrains Mono';ctx.textAlign='right';ctx.fillText(QLAB[qi],48,y+15);
+    roundedRect(ctx,xStart,y,chartW,22,4,'rgba(255,255,255,.02)',QCOLS[qi]+'33');
+    miniRow(ctx, withBoost[qi]||[], TOTAL, y+1, xStart, chartW);
+  }
+  // boost lines
+  [50,100,150].forEach(bt=>{
+    const x=xStart+bt/TOTAL*chartW;
+    ctx.strokeStyle='#f59e0b';ctx.lineWidth=1.5;ctx.setLineDash([3,2]);
+    ctx.beginPath();ctx.moveTo(x,topY+10);ctx.lineTo(x,topY+10+3*20+22);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#f59e0b';ctx.font='9px JetBrains Mono';ctx.textAlign='center';
+    ctx.fillText('Boost',x,topY+8);
+  });
+})();
+
+// ─── STRIDE TABLE ───
+(function(){
+  const t1=[2,4,4,6,8,8,8,10,10,12,14,14,14,16,16];
+  const t2=[3,3,6,6,6,9,9,9,12,12,12,15,15,15,18];
+  const t3=[6,6,6,6,6,6,12,12,12,12,12,12,18,18,18];
+  const chosen=['τ₁','τ₂','τ₁','τ₁','τ₂','τ₂','τ₁','τ₁','τ₂','τ₁','τ₁','τ₂','τ₁','τ₁','τ₂'];
+  const tbody=document.getElementById('strideTbody');
+  for(let i=0;i<t1.length;i++){
+    const tr=document.createElement('tr');
+    const isA=chosen[i]==='τ₁', isB=chosen[i]==='τ₂', isC=chosen[i]==='τ₃';
+    tr.innerHTML=`
+      <td>${i}</td>
+      <td class="${isA?'chosen':''}">${t1[i]}</td>
+      <td class="${isB?'chosen':''}">${t2[i]}</td>
+      <td class="${isC?'chosen':''}">${t3[i]}</td>
+      <td style="color:${isA?'#4f9cf9':isB?'#f87171':'#a78bfa'};font-weight:700">${chosen[i]}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+})();
+
+// ─── SCROLL FADE ───
+const observer = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{ if(e.isIntersecting) e.target.classList.add('visible'); });
+},{threshold:0.08});
+document.querySelectorAll('.fade-in').forEach(el=>observer.observe(el));
+</script>
+</body>
+</html>
