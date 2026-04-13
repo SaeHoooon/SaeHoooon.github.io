@@ -2,7 +2,7 @@ window.lectureData = window.lectureData || {};
 window.lectureData["L62"] = `
 <div class="lec-hero">
   <div class="hero-badge">Lecture 6 · PPT 2</div>
-  <h1 class="hero-title">Control Hazard and Branch Prediction</h1>
+  <h1 class="hero-title">Control Hazard and Branch Prediction (2)</h1>
   <p class="hero-sub">기다리지 말고 예측하라 — Static & Dynamic Branch Prediction</p>
   <div class="hero-meta">
     <span>📚 COAD Ch 4.5–4.7 / COAQA Ch 3.1</span>
