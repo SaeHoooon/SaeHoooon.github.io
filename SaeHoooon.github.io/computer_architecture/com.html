@@ -288,6 +288,22 @@ code{background:#edf2f7;padding:1px 5px;border-radius:3px;font-family:monospace;
 .dp-stage-label{padding:8px 12px;border-radius:8px;font-weight:700;font-size:12px;text-align:center;min-width:70px;line-height:1.3;}
 .dp-units{font-size:11px;color:var(--muted);text-align:center;line-height:1.4;}
 .dp-reg-block{background:#1a365d;color:#90cdf4;border-radius:4px;padding:8px 6px;font-size:10px;font-weight:700;text-align:center;align-self:stretch;display:flex;align-items:center;justify-content:center;line-height:1.4;}
+
+/* ── SIDEBAR TOGGLE ── */
+#sidebar{transition:transform .25s ease,width .25s ease;}
+#sidebar.collapsed{transform:translateX(-100%);}
+#main{transition:margin-left .25s ease;}
+#main.expanded{margin-left:0;}
+#sidebar-toggle{
+  position:fixed;top:16px;left:calc(var(--nav-w) + 10px);z-index:200;
+  width:36px;height:36px;border-radius:8px;
+  background:var(--accent2);color:#fff;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.25);
+  transition:left .25s ease;
+}
+#sidebar-toggle:hover{background:var(--accent);}
+#sidebar-toggle.collapsed{left:10px;}
 </style>
 <script src="lec1-1.js"></script>
 <script src="lec1-2.js"></script>
@@ -311,6 +327,9 @@ code{background:#edf2f7;padding:1px 5px;border-radius:3px;font-family:monospace;
 <script src="lec9-2.js"></script>
 </head>
 <body>
+
+<button id="sidebar-toggle" onclick="toggleSidebar()" title="인덱스 접기/펼치기">☰</button>
+
 
 <!-- ===== SIDEBAR ===== -->
 <nav id="sidebar">
@@ -443,6 +462,16 @@ function show(id) {
 }
 
 show('L21');
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  const btn = document.getElementById('sidebar-toggle');
+  const collapsed = sidebar.classList.toggle('collapsed');
+  main.classList.toggle('expanded', collapsed);
+  btn.classList.toggle('collapsed', collapsed);
+  btn.textContent = collapsed ? '▶' : '☰';
+}
 </script>
 </body>
 </html>
